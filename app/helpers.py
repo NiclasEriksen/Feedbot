@@ -20,6 +20,9 @@ def program_path(relative_path):
     return os.path.join(application_path, relative_path)
 
 
+#
+# https://www.datacamp.com/community/tutorials/fuzzy-string-python
+#
 def levenshtein_ratio_and_distance(s, t, ratio_calc = False):
     """ levenshtein_ratio_and_distance:
         Calculates levenshtein distance between two strings.
