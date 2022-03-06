@@ -65,7 +65,7 @@ async def stream_command(context, search_string: str):
         stream_info.sort(key=lambda x: x["lr"], reverse=True)
         best = max([m["lr"] for m in stream_info])
 
-        if best > 0.0:
+        if best > 0.0 and best < 1.0:
             txt = ""
             over_treshold = [s for s in stream_info[:MAX_STREAM_LINKS] if s["lr"] >= best * 0.85]
             if len(over_treshold) > 1:
