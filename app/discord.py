@@ -13,7 +13,7 @@ try:
 except TypeError:
     SERVER_ID = 0
 
-MAX_STREAM_LINKS = 5
+MAX_STREAM_LINKS = 6
 log = logging.getLogger("feedbot.discord")
 
 client = interactions.Client(os.environ.get("DISCORD_TOKEN"))
@@ -36,6 +36,7 @@ async def check_online(url) -> bool:
     except Exception as e:
         log.error(e)
         return False
+    return False
 
 
 async def get_streams() -> str:
@@ -43,6 +44,7 @@ async def get_streams() -> str:
         stream_dal = StreamDAL(session)
         streams = await stream_dal.get_all_streams()
         return streams
+
 
 @client.command(
     name="stream",
@@ -54,87 +56,51 @@ async def get_streams() -> str:
             name="search_string",
             description="What to search for",
             required=True,
+            autocomplete=True
         ),
     ],
 )
-async def stream_command(context, search_string: str):
+async def stream_command(context, search_string: str = ""):
     streams = await get_streams()
-    if len(streams):
+
+    if not len(streams):
+        return await context.send("Could not find any streams...", ephemeral=True)
+
+    if len(search_string):
+        log.info(f"Search sting is: {search_string}")
+
         matches = match_names(search_string, streams)
         stream_info = [{"name": s.name, "lr": matches[s.id], "url": s.url} for s in streams]
         stream_info.sort(key=lambda x: x["lr"], reverse=True)
         best = max([m["lr"] for m in stream_info])
-
-        if best > 0.0:
-            txt = ""
-            over_treshold = [s for s in stream_info[:MAX_STREAM_LINKS] if s["lr"] >= best * 0.85]
-            if len(over_treshold) > 1 and best < 1.0:
-                txt = f"Found these matching streams:"
-                for s in over_treshold:
-                    online = await check_online(s["url"])
-                    txt += f"\n**{s['name']}:** "
-                    if online:
-                        txt += f"<{s['url']}>"
-                    else:
-                        txt += f"~~<{s['url']}>~~"
-            else:
-                s = over_treshold[0]
-                online = await check_online(s["url"])
-                if online:
-                    txt = f"**{s['name']}:**\n{s['url']}"
-                else:
-                    txt = f"**{s['name']}:**\n~~{s['url']}~~ URL not responding."
-
-            return await context.send(txt)
-
+        if best >= 1.0:
+            over_treshold = [stream_info[0]]
+        elif best == 0.0:
+            over_treshold = []
         else:
-            return await context.send("Could not find a good matching stream for that search term.")
-    
-
-
+            over_treshold = [s for s in stream_info[:MAX_STREAM_LINKS] if s["lr"] >= best * 0.25]
     else:
-        return await context.send("Did not find any streams containing that text.")
+        log.info("Blank search string given.")
+        over_treshold = [{"name": s.name, "url": s.url} for s in streams[:MAX_STREAM_LINKS]]
 
-@client.command(
-    name="add",
-    description="Add a stream, given a url and name.",
-    scope=SERVER_ID,
-    options=[
-        interactions.Option(
-            name="url",
-            description="The stream URL.",
-            type=interactions.OptionType.STRING,
-            required=True
-        ),
-        interactions.Option(
-            name="title",
-            description="What it should be called",
-            type=interactions.OptionType.STRING,
-            required=True
-        )
-    ]
-)
-async def add_command(context, url: str, title: str):
-    if len(url.split()) > 1 or not any(x in url for x in ["http", "https"]):
-        return await context.send("That URL doesn't look right.")
+    if not len(over_treshold):
+        return await context.send("Could not find a good enough match...", ephemeral=True)
 
-    online = await check_online(url)
-    if not online:
-        return await context.send("That URL had a bad respond code, are you sure it's online?")
+    log.info("Generating message to send.")
 
-    streams = await get_streams()
-    
-    async with Session() as session:
-        async with session.begin():
-            stream_dal = StreamDAL(session)
-        
-            for s in streams:
-                if s.url == url:
-                    await stream_dal.update_stream_name(s.id, title)
-                    return await context.send("Stream was already in the database, updated the title instead.")
-            else:
-                s = await stream_dal.create_streamlink(title, context.author.nick, url)
-                return await context.send("Stream has been added to the database.")
+    message = ""
+    several = len(over_treshold) > 1
+    for s in over_treshold:
+        online = await check_online(s["url"])
+        url = s["url"]
+        if several:
+            url = f"<{url}>"
+        message += f"{'~~' if not online else ''}**{s['name']}:** {url}{'~~' if not online else ''}"
+        message += "\n" if several else ""
+
+    log.info("Sending message....")
+    log.info(message)
+    return await context.send(message)
 
 
 @client.command(
@@ -160,6 +126,70 @@ async def remove_command(context, url: str):
 
     return await context.send("Did not find any streams with that url to remove.")
 
+
+@client.command(
+    name="addstream",
+    description="Add a new stream",
+    scope=SERVER_ID,
+    options=[]
+)
+async def stream_enter_modal(context):
+    modal = interactions.Modal(
+        title="Add new stream",
+        custom_id="stream_enter_form",
+        components=[
+            interactions.TextInput(
+                style=interactions.TextStyleType.SHORT,
+                label="Short descriptive name for the stream",
+                custom_id="stream_input_name",
+                min_length=2,
+                max_length=64
+            ),
+            interactions.TextInput(
+                style=interactions.TextStyleType.PARAGRAPH,
+                label="URL",
+                custom_id="stream_input_url",
+                min_length=10,
+                max_length=2048
+            )
+        ]
+    )
+    await context.popup(modal)
+
+
+@client.modal("stream_enter_form")
+async def stream_enter_response(context, name: str, url: str):
+    if len(url.split()) > 1 or not any(x in url for x in ["http", "https"]):
+        return await context.send("That URL doesn't look right.", ephemeral=True)
+
+    online = await check_online(url)
+    if not online:
+        return await context.send("That URL had a bad respond code, are you sure it's online?", ephemeral=True)
+
+    streams = await get_streams()
+    
+    async with Session() as session:
+        async with session.begin():
+            stream_dal = StreamDAL(session)
+        
+            for s in streams:
+                if s.url == url:
+                    await stream_dal.update_stream_name(s.id, name)
+                    return await context.send(f"Stream \"{name}\" was already in the database, updated the title instead.")
+            else:
+                s = await stream_dal.create_streamlink(name, context.author.nick, url)
+                return await context.send(f"Stream \"{name}\" has been added to the database.")
+
+
+@client.autocomplete(
+    command="stream", name="search_string"
+)
+async def do_autocomplete(context, *args):
+    streams = await get_streams()
+    choices = [
+        interactions.Choice(name=s.name, value=s.name) for s in streams
+    ]
+    await context.populate(choices)
 
 
 @client.event
