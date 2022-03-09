@@ -21,5 +21,5 @@ def create_factchect_service(api_key: str) -> discovery.Resource:
 
 
 if __name__ == "__main__":
-    c = create_factchect_service("AIzaSyC1g3sOyKW6RwAqaKrJxUGdSm6mLHYkFnM")
+    c = create_factchect_service("adasdasd")
     print(c)
