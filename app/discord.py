@@ -244,15 +244,13 @@ if fact_check:
         if "claimReview" in claims[0]:
             claim_url = claims[0]["claimReview"][0]["url"]
             claim_title = claims[0]["claimReview"][0]["title"]
+            claim_rating = claims[0]["claimReview"][0]["textualRating"]
         else:
-            claim_url = ""
-            claim_title = ""
+            return await context.send("Something weird about the results...", ephemeral=True)
 
 
-        msg = f"**{claim_title}**\n*{claim_text}*\n<{claim_url}>"
+        msg = f"Fact check: ***{claim_rating}***\n\n**{claim_title}**\n*{claim_text}*\n<{claim_url}>"
 
-        print(context.target)
-        print(context.responded)
 
         await context.send(msg, components=[confirm_button], ephemeral=True)
 
