@@ -1,8 +1,9 @@
+import os
 import logging
 import asyncio
 import aiohttp
 import interactions
-import os
+import python_weather
 from .helpers import levenshtein_ratio_and_distance
 from .db import StreamDAL, Session, StreamLink
 from .google import create_factchect_service, GoogleError
@@ -259,6 +260,24 @@ if fact_check:
 async def post_factcheck(context):
     await context.send(context.message.content)
 
+
+@client.command(
+    name="kyivweather",
+    description="Post current weather",
+    scope=SERVER_ID,
+    options=[]
+)
+async def stream_enter_modal(context):
+    wclient = python_weather.Client(format=python_weather.METRIC)
+    weather = await wclient.find("Kyiv")
+
+    wind = weather.current.wind_display
+    c = weather.current.temperature
+    sky = weather.current.sky_text
+    txt = f"{sky}\nTemp: **{c}**℃/**{round((c * 9/5) + 32)}**F\nWind: *{wind}*"
+
+    await wclient.close()
+    await context.send(txt)
 
 
 @client.event
