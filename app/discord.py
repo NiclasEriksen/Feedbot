@@ -4,17 +4,29 @@ import aiohttp
 import interactions
 import os
 from .helpers import levenshtein_ratio_and_distance
-
 from .db import StreamDAL, Session, StreamLink
+from .google import create_factchect_service, GoogleError
+
+
+log = logging.getLogger("feedbot.discord")
 
 SERVER_ID = os.environ.get("SERVER_ID")
 try:
     SERVER_ID = int(SERVER_ID)
 except TypeError:
+    log.error("No server id supplied, will not be able to use scoped content.")
     SERVER_ID = 0
 
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+try:
+    fact_check = create_factchect_service(GOOGLE_API_KEY)
+except GoogleError:
+    log.error("No google api connection has been made (GOOGLE_API_KEY), fact checking disabled.")
+    fact_check = None
+
+
 MAX_STREAM_LINKS = 6
-log = logging.getLogger("feedbot.discord")
+MAX_CLAIMS = 6
 
 client = interactions.Client(os.environ.get("DISCORD_TOKEN"))
 
@@ -190,6 +202,65 @@ async def do_autocomplete(context, *args):
         interactions.Choice(name=s.name, value=s.name) for s in streams
     ]
     await context.populate(choices)
+
+if fact_check:
+    @client.command(
+        name="factcheck",
+        description="Search multiple sources for fact checks",
+        scope=SERVER_ID,
+        options=[
+            interactions.Option(
+                name="search_string",
+                description="Keywords or phrase to search for",
+                type=interactions.OptionType.STRING,
+                required=True
+            )
+        ]
+    )
+    async def fact_check_select(context, search_string):
+        query = fact_check.search(query=search_string)
+        try:
+            results = query.execute()
+        except Exception as e:
+            raise e
+            return await context.send("Unknown error during fact-checking...", ephemeral=True)
+
+        if "claims" not in results:
+            return await context.send("Could not find any claims matching that text...", ephemeral=True)
+
+        if not len(results["claims"]):
+            return await context.send("Could not find any claims matching that text...", ephemeral=True)
+
+        claims = results["claims"][:MAX_CLAIMS]
+
+        confirm_button = interactions.Button(
+            style=interactions.ButtonStyle.DANGER,
+            label="Post this result?",
+            custom_id="factcheck_confirm_button"
+        )
+
+        claim_text = claims[0]["text"]
+
+        if "claimReview" in claims[0]:
+            claim_url = claims[0]["claimReview"][0]["url"]
+            claim_title = claims[0]["claimReview"][0]["title"]
+        else:
+            claim_url = ""
+            claim_title = ""
+
+
+        msg = f"**{claim_title}**\n*{claim_text}*\n<{claim_url}>"
+
+        print(context.target)
+        print(context.responded)
+
+        await context.send(msg, components=[confirm_button], ephemeral=True)
+
+
+@client.component("factcheck_confirm_button")
+async def post_factcheck(context):
+    await context.send(context.message.content)
+
 
 
 @client.event
