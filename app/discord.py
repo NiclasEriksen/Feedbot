@@ -285,7 +285,10 @@ async def kyiv_weather_command(context):
 )
 async def weather_command(context, location: str):
     wclient = python_weather.Client(format=python_weather.METRIC)
-    weather = await wclient.find(location)
+    try:
+        weather = await wclient.find(location)
+    except:
+        return await context.send("Couldn't find a location matching that text.", ephemeral=True)
 
     wind = weather.current.wind_display
     c = weather.current.temperature
