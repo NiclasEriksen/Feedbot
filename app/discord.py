@@ -267,14 +267,31 @@ async def post_factcheck(context):
     scope=SERVER_ID,
     options=[]
 )
-async def stream_enter_modal(context):
+async def kyiv_weather_command(context):
+    return await weather_command(context, "Kyiv")
+
+@client.command(
+    name="weather",
+    description="Post current weather for location",
+    scope=SERVER_ID,
+    options=[
+        interactions.Option(
+            name="location",
+            description="A location to search for.",
+            type=interactions.OptionType.STRING,
+            required=True
+        )    
+    ]
+)
+async def weather_command(context, location: str):
     wclient = python_weather.Client(format=python_weather.METRIC)
-    weather = await wclient.find("Kyiv")
+    weather = await wclient.find(location)
 
     wind = weather.current.wind_display
     c = weather.current.temperature
     sky = weather.current.sky_text
-    txt = f"{sky}\nTemp: **{c}**℃/**{round((c * 9/5) + 32)}**F\nWind: *{wind}*"
+    op = weather.current.observation_point
+    txt = f"**{op}**\n{sky}\nTemp: **{c}**℃/**{round((c * 9/5) + 32)}**F\nWind: *{wind}*"
 
     await wclient.close()
     await context.send(txt)
