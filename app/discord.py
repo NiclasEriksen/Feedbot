@@ -275,7 +275,6 @@ async def kyiv_weather_command(context):
 @client.command(
     name="weather",
     description="Post current weather for location",
-    scope=SERVER_ID,
     options=[
         interactions.Option(
             name="location",
@@ -305,7 +304,6 @@ async def weather_command(context, location: str):
 @client.command(
     name="posterity",
     description="Sends this link to a service that downloads videos for posterity",
-    scope=SERVER_ID,
     options=[]
 )
 async def open_posterity_modal(context):
