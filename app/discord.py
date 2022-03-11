@@ -18,6 +18,8 @@ except TypeError:
     log.error("No server id supplied, will not be able to use scoped content.")
     SERVER_ID = 0
 
+POST_URL = os.environ.get("POST_URL")
+
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 try:
     fact_check = create_factchect_service(GOOGLE_API_KEY)
@@ -298,6 +300,66 @@ async def weather_command(context, location: str):
 
     await wclient.close()
     await context.send(txt)
+
+
+@client.command(
+    name="posterity",
+    description="Sends this link to a service that downloads videos for posterity",
+    scope=SERVER_ID,
+    options=[]
+)
+async def open_posterity_modal(context):
+    modal = interactions.Modal(
+        title="Save video for posterity",
+        custom_id="posterity_enter_form",
+        components=[
+            interactions.TextInput(
+                style=interactions.TextStyleType.SHORT,
+                label="A descriptive title of this video",
+                custom_id="posterity_input_title",
+                min_length=4,
+                max_length=256
+            ),
+            interactions.TextInput(
+                style=interactions.TextStyleType.PARAGRAPH,
+                label="URL",
+                custom_id="posterity_input_url",
+                min_length=10,
+                max_length=1024
+            ),
+            interactions.TextInput(
+                style=interactions.TextStyleType.SHORT,
+                label="Content warning",
+                custom_id="posterity_input_cw",
+                min_length=10,
+                max_length=128
+            )
+        ]
+    )
+    await context.popup(modal)
+
+
+@client.modal("posterity_enter_form")
+async def posterity_enter_response(context, title: str, url: str, cw: str):
+    if len(url.split()) > 1 or not any(x in url for x in ["http", "https"]):
+        return await context.send("That URL doesn't look right.", ephemeral=True)
+
+    online = await check_online(url)
+    if not online:
+        return await context.send("That URL had a bad respond code, are you sure it's valid?", ephemeral=True)
+
+
+    data = {}
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(POST_URL, json=data) as resp:
+                if resp.status >= 200 and resp.status < 400:
+                    return await context.send(f"Video was sent to ras.putin.no for downloading...", ephemeral=True)
+    except Exception as e:
+        log.error(e)
+
+    return await context.send(f"We got a bad reply from the server, video was **not** saved.", ephemeral=True)
 
 
 @client.event
