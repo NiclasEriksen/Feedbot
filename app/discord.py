@@ -353,7 +353,7 @@ async def posterity_enter_response(context, title: str, url: str, cw: str):
         "url": url,
         "title": title,
         "content_warning": cw,
-        "source": context.author.nick
+        "source": "Discord"
     }
 
     try:
