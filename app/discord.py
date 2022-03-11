@@ -349,7 +349,12 @@ async def posterity_enter_response(context, title: str, url: str, cw: str):
         return await context.send("That URL had a bad respond code, are you sure it's valid?", ephemeral=True)
 
 
-    data = {}
+    data = {
+        "url": url,
+        "title": title,
+        "content_warning": cw,
+        "source": context.author.nick
+    }
 
     try:
         async with aiohttp.ClientSession() as session:
