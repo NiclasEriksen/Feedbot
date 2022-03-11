@@ -331,7 +331,7 @@ async def open_posterity_modal(context):
                 style=interactions.TextStyleType.SHORT,
                 label="Content warning",
                 custom_id="posterity_input_cw",
-                min_length=10,
+                min_length=0,
                 max_length=128
             )
         ]
