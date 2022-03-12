@@ -179,6 +179,7 @@ async def stream_enter_response(context, name: str, url: str):
 
     online = await check_online(url)
     if not online:
+        log.warning(f"{url} had a bad respond code.")
         return await context.send("That URL had a bad respond code, are you sure it's online?", ephemeral=True)
 
     streams = await get_streams()
@@ -204,6 +205,7 @@ async def do_autocomplete(context, *args):
     choices = [
         interactions.Choice(name=s.name, value=s.name) for s in streams
     ]
+    log.info(f"{context.author.nick} searchs for a stream")
     await context.populate(choices)
 
 if fact_check:
