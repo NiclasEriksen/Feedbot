@@ -4,6 +4,7 @@ import asyncio
 import aiohttp
 import interactions
 import python_weather
+import time
 from .helpers import levenshtein_ratio_and_distance
 from .db import StreamDAL, Session, StreamLink
 from .google import create_factchect_service, GoogleError
@@ -20,6 +21,13 @@ except TypeError:
 
 POST_URL = os.environ.get("POST_URL")
 
+THREAD_CHANNEL = os.environ.get("THREAD_CHANNEL")
+try:
+    THREAD_CHANNEL = int(THREAD_CHANNEL)
+except TypeError:
+    log.error("No thread channel supplied, will not be able to use alerts.")
+    THREAD_CHANNEL = 0
+
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 try:
     fact_check = create_factchect_service(GOOGLE_API_KEY)
@@ -30,8 +38,12 @@ except GoogleError:
 
 MAX_STREAM_LINKS = 6
 MAX_CLAIMS = 6
+NEW_THREAD_TIMEOUT = 60 * 15    # 15 minutes
 
-client = interactions.Client(os.environ.get("DISCORD_TOKEN"))
+last_siren = time.time() - NEW_THREAD_TIMEOUT
+
+
+client = interactions.Client(os.environ.get("DISCORD_TOKEN"), intents=interactions.Intents.PRIVILEGED)
 
 
 def match_names(name: str, streams: list) -> {}:
@@ -360,11 +372,27 @@ async def posterity_enter_response(context, title: str, url: str, cw: str):
         async with aiohttp.ClientSession() as session:
             async with session.post(POST_URL, json=data) as resp:
                 if resp.status >= 200 and resp.status < 400:
-                    return await context.send(f"Video was sent to ras.putin.no for downloading...", ephemeral=True)
+                    return await context.send(f"Video was sent to ras.putin.no for downloading: {resp.text()}", ephemeral=True)
     except Exception as e:
         log.error(e)
 
     return await context.send(f"We got a bad reply from the server, video was **not** saved.", ephemeral=True)
+
+#if THREAD_CHANNEL != 0:
+@client.command(
+    name="siren",
+    description="Alerts chat and creates a separate thread for the current siren",
+    options=[],
+    scope=SERVER_ID,
+)
+async def siren_alert(context):
+    g = await context.get_guild()
+    print(context.channel)
+    # m = await context.send("asdadasd")
+    # ch = g.get_channel(THREAD_CHANNEL)
+    c = await context.message.create_thread("TESTITEST") #, auto_archive_duration=0, message_id=alert_message, reason="user called for siren alert")
+    print(g)
+    print(c)
 
 
 @client.event
