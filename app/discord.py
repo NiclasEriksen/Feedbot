@@ -276,6 +276,9 @@ if fact_check:
 async def post_factcheck(context):
     await context.send(context.message.content)
 
+@client.component("posterity_confirm_button")
+async def post_posterity(context):
+    await context.send(context.message.content)
 
 @client.command(
     name="kyivweather",
@@ -368,11 +371,18 @@ async def posterity_enter_response(context, title: str, url: str, cw: str):
         "source": "Discord"
     }
 
+
+    confirm_button = interactions.Button(
+        style=interactions.ButtonStyle.PRIMARY,
+        label="Post in chat?",
+        custom_id="posterity_confirm_button"
+    )
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(POST_URL, json=data) as resp:
                 if resp.status >= 200 and resp.status < 400:
-                    return await context.send(f"Video was sent to ras.putin.no for downloading: {await resp.text()}", ephemeral=True)
+                    return await context.send(f"Video was sent to ras.putin.no for downloading: {await resp.text()}", components=[confirm_button], ephemeral=True)
     except Exception as e:
         log.error(e)
 
