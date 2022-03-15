@@ -326,13 +326,18 @@ async def weather_command(context, location: str):
     options=[
         interactions.Option(
             name="video_url",
-            description="(Optional) url for video.",
+            description="Url for video.",
             type=interactions.OptionType.STRING,
             required=False
         )
     ]
 )
-async def open_posterity_modal(context, video_url=""):
+async def open_posterity_modal(context, *args, **kwargs):
+    if "video_url" in kwargs.keys():
+        video_url = kwargs["video_url"]
+    else:
+        video_url = ""
+
     modal = interactions.Modal(
         title="Save video for posterity",
         custom_id="posterity_enter_form",
