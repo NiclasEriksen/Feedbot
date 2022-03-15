@@ -274,11 +274,13 @@ if fact_check:
 
 @client.component("factcheck_confirm_button")
 async def post_factcheck(context):
-    await context.send(context.message.content)
+    await context.send(context.message.content, allowed_mentions=False)
+
 
 @client.component("posterity_confirm_button")
 async def post_posterity(context):
-    await context.send(context.message.content)
+    await context.send(context.message.content, allowed_mentions=False)
+
 
 @client.command(
     name="kyivweather",
@@ -298,7 +300,7 @@ async def kyiv_weather_command(context):
             description="A location to search for.",
             type=interactions.OptionType.STRING,
             required=True
-        )    
+        )
     ]
 )
 async def weather_command(context, location: str):
@@ -321,9 +323,16 @@ async def weather_command(context, location: str):
 @client.command(
     name="posterity",
     description="Sends this link to a service that downloads videos for posterity",
-    options=[]
+    options=[
+        interactions.Option(
+            name="video_url",
+            description="(Optional) url for video.",
+            type=interactions.OptionType.STRING,
+            required=False
+        )
+    ]
 )
-async def open_posterity_modal(context):
+async def open_posterity_modal(context, video_url=""):
     modal = interactions.Modal(
         title="Save video for posterity",
         custom_id="posterity_enter_form",
@@ -339,6 +348,7 @@ async def open_posterity_modal(context):
                 style=interactions.TextStyleType.PARAGRAPH,
                 label="URL",
                 custom_id="posterity_input_url",
+                value=video_url,
                 min_length=10,
                 max_length=1024
             ),
@@ -346,6 +356,7 @@ async def open_posterity_modal(context):
                 style=interactions.TextStyleType.SHORT,
                 label="Content warning",
                 custom_id="posterity_input_cw",
+                value="None",
                 min_length=0,
                 max_length=128
             )
@@ -387,22 +398,6 @@ async def posterity_enter_response(context, title: str, url: str, cw: str):
         log.error(e)
 
     return await context.send(f"We got a bad reply from the server, video was **not** saved.", ephemeral=True)
-
-#if THREAD_CHANNEL != 0:
-@client.command(
-    name="siren",
-    description="Alerts chat and creates a separate thread for the current siren",
-    options=[],
-    scope=SERVER_ID,
-)
-async def siren_alert(context):
-    g = await context.get_guild()
-    print(context.channel)
-    # m = await context.send("asdadasd")
-    # ch = g.get_channel(THREAD_CHANNEL)
-    c = await context.message.create_thread("TESTITEST") #, auto_archive_duration=0, message_id=alert_message, reason="user called for siren alert")
-    print(g)
-    print(c)
 
 
 @client.event
