@@ -382,7 +382,7 @@ async def posterity_enter_response(context, title: str, url: str, cw: str):
         async with aiohttp.ClientSession() as session:
             async with session.post(POST_URL, json=data) as resp:
                 if resp.status >= 200 and resp.status < 400:
-                    return await context.send(f"Video was sent to ras.putin.no for downloading: {await resp.text()}", components=[confirm_button], ephemeral=True)
+                    return await context.send(f":card_box:  This video is being downloaded and archived for **Posterity**:\n{await resp.text()}", components=[confirm_button], ephemeral=True)
     except Exception as e:
         log.error(e)
 
